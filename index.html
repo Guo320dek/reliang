@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>热量教练</title>
+<style>
+/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  热量教练 — 单文件版
+  复制粘贴这一个文件到 GitHub 就能用
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#1a1a2e;--surface:#16213e;--surface-light:#1f3460;--text:#e8e8e8;--text-dim:#a0a0b8;--accent:#ff6b6b;--accent-green:#4CAF50;--accent-orange:#FF9800;--accent-red:#D32F2F;--border:#2a3a5c;--radius:14px;--shadow:0 4px 24px rgba(0,0,0,.3)}
+body.theme-nailong{--bg:#FFF8E1;--surface:#FFF;--surface-light:#FFF3E0;--text:#4E342E;--text-dim:#8D6E63;--accent:#FF7043;--accent-green:#66BB6A;--accent-orange:#FFA726;--accent-red:#E64A19;--border:#FFE0B2;--shadow:0 4px 24px rgba(139,90,43,.08)}
+body.theme-nailong #result-cumulative,body.theme-nailong #result-exercise{background:#FFF8E1}
+body.theme-nailong #result-substitutes{background:rgba(102,187,106,.08);border-color:rgba(102,187,106,.2)}
+body.theme-nailong .sub-item{border-bottom-color:rgba(139,90,43,.08)}
+body.theme-nailong .history-item{border-top-color:#FFE0B2}
+body.theme-nailong #result-quote{border-top-color:#FFE0B2}
+body.theme-nailong .death-log-item{border-bottom-color:#FFE0B2}
+body.theme-nailong #death-card{border-color:var(--accent-red)}
+body.theme-nailong #death-dismiss-btn:hover{color:#fff}
+html{font-size:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
+#app{max-width:480px;margin:0 auto;padding:12px 16px 80px}
+.hidden{display:none!important}
+#top-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin-bottom:12px;gap:8px}
+#pet-selector{display:flex;gap:4px}
+.pet-type-btn{background:var(--surface);color:var(--text-dim);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:.75rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+.pet-type-btn.active{background:var(--surface-light);color:var(--text);border-color:var(--accent);font-weight:600}
+#right-controls{display:flex;align-items:center;gap:6px}
+#personality-select{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:.8rem;outline:none;cursor:pointer}
+#reset-btn{background:var(--surface);color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.8rem;cursor:pointer;transition:all .2s}
+#reset-btn:hover{background:var(--accent-red);color:#fff;border-color:var(--accent-red)}
+#api-key-section{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center}
+#api-key-section p{font-size:.85rem;color:var(--text-dim);margin-bottom:10px}
+#api-key-section a{color:var(--accent)}
+#api-key-input{width:100%;padding:10px 12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:.85rem;margin-bottom:8px;outline:none}
+#api-key-input:focus{border-color:var(--accent)}
+#api-key-save-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:.9rem;cursor:pointer}
+#pet-area{background:var(--surface);border-radius:var(--radius);padding:100px 16px 20px;margin-bottom:16px;text-align:center;box-shadow:var(--shadow);position:relative}
+.pet-type-electric .creature-nailong{display:none}
+.pet-type-nailong .creature-electric{display:none}
+#pet-avatar{position:fixed;z-index:90;pointer-events:none;left:10%;top:50%;width:90px;height:100px;transition:filter .5s}
+.creature-shadow{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:60px;height:12px;background:rgba(0,0,0,.2);border-radius:50%;transition:all .4s;animation:shadow-pulse .8s ease-in-out infinite}
+@keyframes shadow-pulse{0%,100%{transform:translateX(-50%) scaleX(1);opacity:.3}50%{transform:translateX(-50%) scaleX(.7);opacity:.15}}
+.pet-creature{position:relative;width:100%;height:100%;animation:creature-walk .5s ease-in-out infinite}
+.pet-healthy .pet-creature{animation-duration:.4s}
+.pet-full .pet-creature{animation-duration:.65s}
+.pet-struggle .pet-creature{animation-duration:.8s;animation-name:creature-stumble}
+.creature-body{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:64px;height:56px;border-radius:45% 45% 48% 48%/52% 52% 48% 48%;transition:background .5s,transform .3s;z-index:2}
+.creature-ear{position:absolute;bottom:56px;width:18px;height:30px;border-radius:50% 50% 10% 10%;transition:background .5s,transform .3s;z-index:1;transform-origin:bottom center}
+.creature-ear-l{left:18px;transform:rotate(-15deg)}
+.creature-ear-r{right:18px;transform:rotate(15deg)}
+.creature-ear::after{content:'';position:absolute;top:0;left:0;right:0;height:40%;border-radius:50% 50% 10% 10%;transition:background .5s}
+.creature-eye{position:absolute;top:18px;width:10px;height:12px;background:#1a1a2e;border-radius:50%;z-index:3;transition:all .3s}
+.creature-eye-l{left:16px}.creature-eye-r{right:16px}
+.creature-eye::after{content:'';position:absolute;top:2px;left:2px;width:4px;height:4px;background:#fff;border-radius:50%;transition:opacity .3s}
+.creature-mouth{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:3;transition:all .3s}
+.creature-cheek{position:absolute;top:24px;width:14px;height:10px;border-radius:50%;z-index:3;transition:all .3s}
+.creature-cheek-l{left:4px}.creature-cheek-r{right:4px}
+.creature-arm{position:absolute;bottom:36px;width:12px;height:20px;border-radius:40%;z-index:1;transform-origin:top center;transition:background .5s}
+.creature-arm-l{left:2px;animation:arm-swing-l .4s ease-in-out infinite}
+.creature-arm-r{right:2px;animation:arm-swing-r .4s ease-in-out infinite}
+.pet-healthy .creature-arm-l,.pet-healthy .creature-arm-r{animation-duration:.35s}
+.pet-full .creature-arm-l,.pet-full .creature-arm-r{animation-duration:.55s}
+.pet-struggle .creature-arm-l,.pet-struggle .creature-arm-r{animation-duration:.7s}
+.creature-leg{position:absolute;bottom:8px;width:14px;height:16px;border-radius:35%;z-index:1;transform-origin:top center;transition:background .5s}
+.creature-leg-l{left:18px;animation:leg-walk-l .4s ease-in-out infinite}
+.creature-leg-r{right:18px;animation:leg-walk-r .4s ease-in-out infinite}
+.pet-healthy .creature-leg-l,.pet-healthy .creature-leg-r{animation-duration:.35s}
+.pet-full .creature-leg-l,.pet-full .creature-leg-r{animation-duration:.55s}
+.pet-struggle .creature-leg-l,.pet-struggle .creature-leg-r{animation-duration:.7s}
+.creature-tail{position:absolute;left:6px;bottom:44px;width:8px;height:24px;z-index:0;transform-origin:bottom center;transition:background .5s;animation:tail-wag .6s ease-in-out infinite}
+.creature-tail::before{content:'';position:absolute;top:-6px;left:-10px;width:14px;height:20px;border-radius:0 50% 50% 0/0 50% 50% 0;background:inherit;transform:rotate(-30deg)}
+.creature-tail::after{content:'';position:absolute;top:-14px;left:-4px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid #FFD700;transform:rotate(15deg);transition:border-bottom-color .5s}
+.pet-healthy .creature-body{background:linear-gradient(180deg,#FFE082 0%,#FFD54F 60%,#FFC107 100%)}
+.pet-healthy .creature-ear{background:#FFD54F}
+.pet-healthy .creature-ear::after{background:#1a1a2e}
+.pet-healthy .creature-cheek{background:#FF5252;opacity:.8}
+.pet-healthy .creature-arm{background:#FFD54F}
+.pet-healthy .creature-leg{background:#FFD54F}
+.pet-healthy .creature-tail{background:#FFC107}
+.pet-healthy .creature-tail::after{border-bottom-color:#FFD700}
+.pet-healthy .creature-mouth{width:16px;height:10px;border-bottom:3px solid #1a1a2e;border-radius:0 0 10px 10px}
+.pet-healthy{animation:run-x 6s ease-in-out infinite,run-y 4s ease-in-out infinite}
+.pet-full .creature-body{background:linear-gradient(180deg,#FFCC80 0%,#FFB74D 60%,#F57C00 100%)}
+.pet-full .creature-ear{background:#FFB74D}
+.pet-full .creature-ear::after{background:#1a1a2e}
+.pet-full .creature-cheek{background:#FF5252;opacity:.5}
+.pet-full .creature-arm{background:#FFB74D}
+.pet-full .creature-leg{background:#FFB74D}
+.pet-full .creature-tail{background:#F57C00}
+.pet-full .creature-tail::after{border-bottom-color:#F57C00}
+.pet-full .creature-mouth{width:12px;height:0;border-bottom:3px solid #1a1a2e;border-radius:0}
+.pet-full .creature-eye{width:8px;height:10px}
+.pet-full{animation:run-x 10s ease-in-out infinite,run-y 7s ease-in-out infinite}
+.pet-struggle .creature-body{background:linear-gradient(180deg,#FFAB91 0%,#FF8A65 60%,#E64A19 100%)}
+.pet-struggle .creature-ear{background:#FF8A65}
+.pet-struggle .creature-ear::after{background:#1a1a2e}
+.pet-struggle .creature-cheek{background:#EF5350;opacity:.6}
+.pet-struggle .creature-arm{background:#FF8A65}
+.pet-struggle .creature-leg{background:#FF8A65}
+.pet-struggle .creature-tail{background:#E64A19;animation-duration:.3s}
+.pet-struggle .creature-tail::after{border-bottom-color:#E64A19}
+.pet-struggle .creature-mouth{width:12px;height:10px;border:2px solid #1a1a2e;border-radius:50%;border-top-color:transparent;border-left-color:transparent;transform:translateX(-50%) rotate(15deg)}
+.pet-struggle .creature-eye{width:6px;height:10px;border-radius:3px}
+.pet-struggle .creature-eye::after{opacity:.3}
+.pet-struggle{animation:run-x 14s ease-in-out infinite,stumble-y 3s ease-in-out infinite}
+.pet-dying .creature-body{background:linear-gradient(180deg,#EF9A9A 0%,#E57373 60%,#C62828 100%)}
+.pet-dying .creature-ear{background:#E57373}
+.pet-dying .creature-ear::after{background:#1a1a2e}
+.pet-dying .creature-cheek{background:#D32F2F;opacity:.4}
+.pet-dying .creature-arm{background:#E57373;animation-duration:.2s!important}
+.pet-dying .creature-leg{background:#E57373;animation-duration:.2s!important}
+.pet-dying .creature-tail{background:#C62828;animation-duration:.15s}
+.pet-dying .creature-tail::after{border-bottom-color:#C62828}
+.pet-dying .creature-mouth{width:10px;height:10px;border-radius:50%;background:none;border:3px solid #1a1a2e;border-top-color:transparent;border-right-color:transparent;transform:translateX(-50%) rotate(-30deg)}
+.pet-dying .creature-eye{width:3px;height:12px;border-radius:2px;top:16px}
+.pet-dying .creature-eye-l{left:18px}.pet-dying .creature-eye-r{right:18px}
+.pet-dying .creature-eye::after{opacity:0}
+.pet-dying{animation:dying-crawl 5s ease-in-out infinite;filter:brightness(.9)}
+.pet-dead .creature-body{background:linear-gradient(180deg,#BDBDBD 0%,#9E9E9E 60%,#616161 100%);transform:translateX(-50%) rotate(85deg);border-radius:45% 45% 40% 48%}
+.pet-dead .creature-ear{background:#9E9E9E}
+.pet-dead .creature-ear::after{background:#424242}
+.pet-dead .creature-cheek{background:#757575;opacity:.3}
+.pet-dead .creature-arm{background:#9E9E9E;animation:none!important}
+.pet-dead .creature-arm-l{transform:rotate(60deg)}.pet-dead .creature-arm-r{transform:rotate(-50deg)}
+.pet-dead .creature-leg{background:#9E9E9E;animation:none!important}
+.pet-dead .creature-leg-l{transform:rotate(20deg)}.pet-dead .creature-leg-r{transform:rotate(-15deg)}
+.pet-dead .creature-tail{background:#757575;animation:none}
+.pet-dead .creature-tail::after{border-bottom-color:#757575}
+.pet-dead .creature-mouth{width:14px;height:2px;background:#424242;border-radius:2px;bottom:10px}
+.pet-dead .creature-eye{width:2px;height:14px;border-radius:1px;background:#424242}
+.pet-dead .creature-eye-l{transform:rotate(35deg);left:18px;top:14px}
+.pet-dead .creature-eye-r{transform:rotate(-35deg);right:18px;top:14px}
+.pet-dead .creature-eye::after{opacity:0}
+.pet-dead .pet-creature{animation:none}
+.pet-dead .creature-shadow{opacity:0}
+.pet-dead{animation:none;left:50%!important;top:80%!important;transform:translateX(-50%);transition:left .8s ease-out,top .8s ease-out}
+/* ---- 奶龙 ---- */
+.pet-type-nailong .pet-creature{animation-name:nailong-bounce}
+.nailong-body{width:72px!important;height:60px!important;border-radius:50%!important;bottom:10px!important}
+.nailong-belly{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:48px;height:34px;border-radius:50%;z-index:1;transition:background .5s}
+.nailong-horn{position:absolute;bottom:66px;width:0;height:0;z-index:1;transition:border-bottom-color .5s}
+.nailong-horn-l{left:22px;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:16px solid #F9A825;transform:rotate(-10deg)}
+.nailong-horn-r{right:22px;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:16px solid #F9A825;transform:rotate(10deg)}
+.nailong-eye{width:14px!important;height:16px!important;top:16px!important;border-radius:50%!important}
+.nailong-eye-l{left:14px!important}.nailong-eye-r{right:14px!important}
+.nailong-eye::after{width:5px!important;height:5px!important;top:3px!important;left:3px!important}
+.nailong-mouth{bottom:8px!important}
+.nailong-cheek{width:12px!important;height:8px!important;top:26px!important}
+.nailong-cheek-l{left:2px!important}.nailong-cheek-r{right:2px!important}
+.nailong-arm{width:10px!important;height:14px!important;border-radius:45%!important;bottom:28px!important}
+.nailong-leg{width:12px!important;height:12px!important;border-radius:45%!important;bottom:2px!important}
+.nailong-tail{position:absolute;right:8px;bottom:24px;width:16px;height:12px;border-radius:50%;z-index:0;transition:background .5s;animation:tail-wag .8s ease-in-out infinite}
+.pet-healthy.pet-type-nailong .nailong-body{background:linear-gradient(180deg,#FFF9C4 0%,#FFEE58 60%,#FDD835 100%)}
+.pet-healthy.pet-type-nailong .nailong-belly{background:#FFFDE7}
+.pet-healthy.pet-type-nailong .nailong-horn{border-bottom-color:#F9A825}
+.pet-healthy.pet-type-nailong .nailong-arm{background:#FFEE58}
+.pet-healthy.pet-type-nailong .nailong-leg{background:#FFEE58}
+.pet-healthy.pet-type-nailong .nailong-tail{background:#FDD835}
+.pet-healthy.pet-type-nailong .nailong-cheek{background:#FF8A80;opacity:.7}
+.pet-healthy.pet-type-nailong .nailong-mouth{width:16px;height:10px;border-bottom:3px solid #5D4037;border-radius:0 0 10px 10px}
+.pet-full.pet-type-nailong .nailong-body{background:linear-gradient(180deg,#FFE082 0%,#FFCA28 60%,#FFB300 100%)}
+.pet-full.pet-type-nailong .nailong-belly{background:#FFF8E1}
+.pet-full.pet-type-nailong .nailong-horn{border-bottom-color:#F57F17}
+.pet-full.pet-type-nailong .nailong-arm{background:#FFCA28}
+.pet-full.pet-type-nailong .nailong-leg{background:#FFCA28}
+.pet-full.pet-type-nailong .nailong-tail{background:#FFB300}
+.pet-full.pet-type-nailong .nailong-cheek{background:#FF8A80;opacity:.5}
+.pet-full.pet-type-nailong .nailong-mouth{width:12px;height:0;border-bottom:3px solid #5D4037;border-radius:0}
+.pet-struggle.pet-type-nailong .nailong-body{background:linear-gradient(180deg,#FFCC80 0%,#FFA726 60%,#EF6C00 100%)}
+.pet-struggle.pet-type-nailong .nailong-belly{background:#FFF3E0}
+.pet-struggle.pet-type-nailong .nailong-horn{border-bottom-color:#E65100}
+.pet-struggle.pet-type-nailong .nailong-arm{background:#FFA726}
+.pet-struggle.pet-type-nailong .nailong-leg{background:#FFA726}
+.pet-struggle.pet-type-nailong .nailong-tail{background:#EF6C00}
+.pet-struggle.pet-type-nailong .nailong-cheek{background:#EF5350;opacity:.5}
+.pet-struggle.pet-type-nailong .nailong-mouth{width:12px;height:10px;border:2px solid #5D4037;border-radius:50%;border-top-color:transparent;border-left-color:transparent;transform:translateX(-50%) rotate(15deg)}
+.pet-dying.pet-type-nailong .nailong-body{background:linear-gradient(180deg,#FFAB91 0%,#FF7043 60%,#D84315 100%)}
+.pet-dying.pet-type-nailong .nailong-belly{background:#FBE9E7}
+.pet-dying.pet-type-nailong .nailong-horn{border-bottom-color:#BF360C}
+.pet-dying.pet-type-nailong .nailong-arm{background:#FF7043;animation-duration:.2s!important}
+.pet-dying.pet-type-nailong .nailong-leg{background:#FF7043;animation-duration:.2s!important}
+.pet-dying.pet-type-nailong .nailong-tail{background:#D84315;animation-duration:.15s}
+.pet-dying.pet-type-nailong .nailong-cheek{background:#D32F2F;opacity:.3}
+.pet-dying.pet-type-nailong .nailong-mouth{width:10px;height:10px;border-radius:50%;background:none;border:3px solid #5D4037;border-top-color:transparent;border-right-color:transparent;transform:translateX(-50%) rotate(-30deg)}
+.pet-dying.pet-type-nailong .nailong-eye{width:3px!important;height:12px!important;border-radius:2px!important}
+.pet-dying.pet-type-nailong .nailong-eye::after{opacity:0}
+.pet-dead.pet-type-nailong .nailong-body{background:linear-gradient(180deg,#BDBDBD 0%,#9E9E9E 60%,#616161 100%);transform:translateX(-50%) rotate(85deg)!important}
+.pet-dead.pet-type-nailong .nailong-belly{background:#E0E0E0}
+.pet-dead.pet-type-nailong .nailong-horn{border-bottom-color:#757575}
+.pet-dead.pet-type-nailong .nailong-arm{background:#9E9E9E;animation:none!important}
+.pet-dead.pet-type-nailong .nailong-leg{background:#9E9E9E;animation:none!important}
+.pet-dead.pet-type-nailong .nailong-tail{background:#757575;animation:none}
+.pet-dead.pet-type-nailong .nailong-cheek{background:#757575;opacity:.3}
+.pet-dead.pet-type-nailong .nailong-mouth{width:14px;height:2px;background:#424242;border-radius:2px;bottom:6px!important}
+.pet-dead.pet-type-nailong .nailong-eye{width:2px!important;height:14px!important;border-radius:1px!important;background:#424242!important}
+.pet-dead.pet-type-nailong .nailong-eye-l{transform:rotate(35deg);left:16px!important}
+.pet-dead.pet-type-nailong .nailong-eye-r{transform:rotate(-35deg);right:16px!important}
+.pet-dead.pet-type-nailong .nailong-eye::after{opacity:0}
+.pet-dead.pet-type-nailong .pet-creature{animation:none}
+@keyframes nailong-bounce{0%,100%{transform:translateY(0) scale(1,1)}30%{transform:translateY(-10px) scale(1.05,.95)}50%{transform:translateY(0) scale(1,1)}70%{transform:translateY(-6px) scale(1.02,.98)}}
+@keyframes run-x{0%{left:5%}15%{left:85%}30%{left:30%}45%{left:75%}60%{left:15%}75%{left:60%}90%{left:40%}100%{left:5%}}
+@keyframes run-y{0%{top:20%}20%{top:65%}40%{top:35%}60%{top:70%}80%{top:25%}100%{top:20%}}
+@keyframes stumble-y{0%{top:30%}25%{top:55%}50%{top:45%}75%{top:60%}100%{top:30%}}
+@keyframes dying-crawl{0%{left:20%;top:60%}50%{left:40%;top:65%}100%{left:20%;top:60%}}
+@keyframes creature-walk{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+@keyframes creature-stumble{0%{transform:translateY(0) rotate(-4deg)}25%{transform:translateY(-4px) rotate(-1deg)}50%{transform:translateY(2px) rotate(4deg)}75%{transform:translateY(-2px) rotate(1deg)}100%{transform:translateY(0) rotate(-4deg)}}
+@keyframes leg-walk-l{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(25deg)}}
+@keyframes leg-walk-r{0%,100%{transform:rotate(25deg)}50%{transform:rotate(-20deg)}}
+@keyframes arm-swing-l{0%,100%{transform:rotate(20deg)}50%{transform:rotate(-15deg)}}
+@keyframes arm-swing-r{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(20deg)}}
+@keyframes tail-wag{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(25deg)}}
+#pet-status-text{font-size:.95rem;color:var(--text);margin-bottom:12px;min-height:1.5em}
+#pet-progress-container{background:var(--bg);border-radius:10px;height:8px;margin-bottom:8px;overflow:hidden}
+#pet-progress-bar{height:100%;background:var(--accent-green);border-radius:10px;transition:width .5s ease,background-color .5s ease;min-width:4px}
+#pet-progress-label{font-size:.75rem;color:var(--text-dim)}
+#pet-gender-toggle{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.gender-btn{background:var(--bg);color:var(--text-dim);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:.8rem;cursor:pointer;transition:all .2s}
+.gender-btn.active{background:var(--surface-light);color:var(--text);border-color:var(--accent)}
+#search-area{margin-bottom:16px}
+#search-box{display:flex;gap:8px}
+#food-input{flex:1;padding:14px 16px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--radius);font-size:1rem;outline:none;transition:border-color .2s}
+#food-input:focus{border-color:var(--accent)}
+#food-input::placeholder{color:var(--text-dim);font-size:.85rem}
+#search-btn{padding:14px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:1.1rem;cursor:pointer;transition:transform .15s,opacity .15s;white-space:nowrap}
+#search-btn:active{transform:scale(.95);opacity:.8}
+#loading{text-align:center;padding:40px 0}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-text{color:var(--text-dim);font-size:.85rem}
+#result-area{margin-bottom:16px}
+#result-card{background:var(--surface);border-radius:var(--radius);padding:20px 16px;box-shadow:var(--shadow);animation:slideUp .3s ease}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+#result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+#result-food-name{font-size:1.2rem;font-weight:700}
+.confidence{font-size:.7rem;padding:3px 8px;border-radius:10px}
+.confidence.db{background:rgba(76,175,80,.2);color:var(--accent-green)}
+.confidence.ai{background:rgba(255,152,0,.2);color:var(--accent-orange)}
+.confidence.estimate{background:rgba(100,180,255,.2);color:#64B5F6}
+#result-calories{text-align:center;margin-bottom:16px}
+.cal-number{font-size:2.5rem;font-weight:800;color:var(--accent)}
+.cal-unit{font-size:1rem;color:var(--text-dim)}
+#result-fat-feedback{font-size:1rem;color:var(--accent-orange);text-align:center;margin-bottom:4px;font-weight:600}
+#result-fat-visual{font-size:.8rem;color:var(--text-dim);text-align:center;margin-bottom:14px;font-style:italic}
+#result-cumulative{background:var(--bg);border-radius:10px;padding:12px;margin-bottom:14px;font-size:.85rem;color:var(--text-dim)}
+#result-cumulative div{margin-bottom:2px}
+#result-exercise{background:var(--bg);border-radius:10px;padding:12px;margin-bottom:14px;font-size:.9rem;text-align:center}
+#result-substitutes{background:rgba(76,175,80,.08);border:1px solid rgba(76,175,80,.2);border-radius:10px;padding:12px;margin-bottom:14px}
+.sub-title{font-size:.85rem;color:var(--accent-green);margin-bottom:8px;font-weight:600}
+.sub-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.05)}
+.sub-item:last-child{border-bottom:none}
+#result-quote{text-align:center;font-size:.95rem;font-style:italic;color:var(--text);padding:12px;border-top:1px solid var(--border)}
+#history-area{margin-bottom:16px}
+#history-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--surface);border-radius:var(--radius);cursor:pointer;font-size:.9rem;font-weight:600;user-select:none}
+#history-list{background:var(--surface);border-radius:0 0 var(--radius) var(--radius);overflow:hidden}
+#history-list.collapsed{display:none}
+.history-item{display:flex;align-items:center;padding:10px 16px;border-top:1px solid var(--border);font-size:.85rem;gap:8px}
+.history-name{flex:1}
+.history-cal{color:var(--accent);font-weight:600;min-width:65px;text-align:right}
+.history-time{color:var(--text-dim);font-size:.75rem;min-width:45px;text-align:right}
+.history-delete{background:none;color:var(--text-dim);border:none;cursor:pointer;font-size:.9rem;padding:4px;opacity:.5;transition:opacity .2s}
+.history-delete:hover{opacity:1;color:var(--accent)}
+#death-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#death-card{background:var(--surface);border:2px solid var(--accent-red);border-radius:20px;padding:32px 24px;max-width:380px;width:100%;text-align:center;animation:deathShake .5s ease}
+@keyframes deathShake{0%,100%{transform:translateX(0)}10%,50%,90%{transform:translateX(-4px)}30%,70%{transform:translateX(4px)}}
+#death-icon{font-size:5rem;margin-bottom:8px}
+#death-card h2{font-size:1.4rem;margin-bottom:12px;color:var(--accent-red)}
+#death-summary{font-size:.9rem;color:var(--text-dim);margin-bottom:16px;font-style:italic}
+.death-log-title{font-weight:600;margin-bottom:8px;font-size:.85rem;text-align:left}
+.death-log-item{font-size:.85rem;padding:6px 0;text-align:left;border-bottom:1px solid var(--border)}
+#death-revive-note{font-size:.75rem;color:var(--text-dim);margin:16px 0}
+#death-dismiss-btn{background:var(--surface-light);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px 28px;font-size:.95rem;cursor:pointer;transition:all .2s}
+#death-dismiss-btn:hover{background:var(--accent-red);border-color:var(--accent-red)}
+#footer{text-align:center;padding:20px 0}
+#footer p{font-size:.7rem;color:var(--text-dim);line-height:1.8}
+@media(min-width:481px){#app{padding-top:40px}}
+</style>
+</head>
+<body class="theme-electric">
+<div id="app">
+<header id="top-bar">
+<div id="pet-selector">
+<button class="pet-type-btn active" data-pet="electric">⚡电气鼠</button>
+<button class="pet-type-btn" data-pet="nailong">🥛奶龙</button>
+</div>
+<div id="right-controls">
+<select id="personality-select">
+<option value="auto">🎲自动</option>
+<option value="mean">💀毒舌</option>
+<option value="kind">🤗温柔</option>
+<option value="pro">👨‍⚕️专业</option>
+</select>
+<button id="reset-btn">🔄</button>
+</div>
+</header>
+<section id="api-key-section">
+<p>🔑 需要 <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek API Key</a> 来查数据库外的食物（可选，无 Key 也能用智能估算）</p>
+<input type="password" id="api-key-input" placeholder="粘贴API Key…">
+<button id="api-key-save-btn">保存</button>
+</section>
+<section id="pet-area">
+<div id="pet-avatar" class="pet-healthy pet-type-electric">
+<div class="pet-creature creature-electric">
+<div class="creature-ear creature-ear-l"></div><div class="creature-ear creature-ear-r"></div>
+<div class="creature-body">
+<div class="creature-eye creature-eye-l"></div><div class="creature-eye creature-eye-r"></div>
+<div class="creature-mouth"></div>
+<div class="creature-cheek creature-cheek-l"></div><div class="creature-cheek creature-cheek-r"></div>
+</div>
+<div class="creature-arm creature-arm-l"></div><div class="creature-arm creature-arm-r"></div>
+<div class="creature-leg creature-leg-l"></div><div class="creature-leg creature-leg-r"></div>
+<div class="creature-tail"></div>
+</div>
+<div class="pet-creature creature-nailong">
+<div class="nailong-horn nailong-horn-l"></div><div class="nailong-horn nailong-horn-r"></div>
+<div class="creature-body nailong-body">
+<div class="nailong-belly"></div>
+<div class="creature-eye nailong-eye nailong-eye-l"></div><div class="creature-eye nailong-eye nailong-eye-r"></div>
+<div class="creature-mouth nailong-mouth"></div>
+<div class="creature-cheek nailong-cheek nailong-cheek-l"></div><div class="creature-cheek nailong-cheek nailong-cheek-r"></div>
+</div>
+<div class="creature-arm nailong-arm creature-arm-l"></div><div class="creature-arm nailong-arm creature-arm-r"></div>
+<div class="creature-leg nailong-leg creature-leg-l"></div><div class="creature-leg nailong-leg creature-leg-r"></div>
+<div class="nailong-tail"></div>
+</div>
+<div class="creature-shadow"></div>
+</div>
+<div id="pet-status-text">来，看看今天想吃什么？</div>
+<div id="pet-progress-container"><div id="pet-progress-bar"></div><span id="pet-progress-label">今日:0/1800大卡</span></div>
+<div id="pet-gender-toggle">
+<button class="gender-btn active" data-gender="female">👩女(1800)</button>
+<button class="gender-btn" data-gender="male">👨男(2200)</button>
+</div>
+</section>
+<section id="search-area"><div id="search-box">
+<input type="text" id="food-input" placeholder="输入想吃的…如「红烧牛肉面」「奶茶」" autocomplete="off">
+<button id="search-btn">🔍查询</button>
+</div></section>
+<div id="loading" class="hidden"><div class="spinner"></div><p id="loading-text">正在查询…</p></div>
+<section id="result-area" class="hidden"><div id="result-card">
+<div id="result-header"><span id="result-food-name"></span><span id="result-confidence"></span></div>
+<div id="result-calories"></div><div id="result-fat-feedback"></div><div id="result-fat-visual"></div>
+<div id="result-cumulative"></div><div id="result-exercise"></div>
+<div id="result-substitutes"></div><div id="result-quote"></div>
+</div></section>
+<section id="history-area" class="hidden">
+<div id="history-header"><span>📋今日记录</span><span id="history-toggle">▼</span></div>
+<div id="history-list"></div>
+</section>
+<div id="death-overlay" class="hidden"><div id="death-card">
+<div id="death-icon">💀</div><h2>你的伙伴已经死了</h2>
+<p id="death-summary"></p><div id="death-log"></div>
+<p id="death-revive-note">明天00:00自动复活</p>
+<button id="death-dismiss-btn">我错了，明天重新做人</button>
+</div></div>
+<footer id="footer">
+<p>🔒所有数据仅存储在您的设备本地</p><p>数据来源：本地数据库+智能估算+AI，仅供参考</p>
+</footer>
+</div>
+<script>
+// 热量教练 v1 — 单文件完整版
+(function(){"use strict";
+const A=(()=>{try{const e="__s__";return localStorage.setItem(e,e),localStorage.removeItem(e),!0}catch{return!1}})();
+function L(e,t=null){if(!A)return t;try{const n=localStorage.getItem(e);return null===n?t:JSON.parse(n)}catch{return t}}
+function S(e,t){if(!A)return!1;try{return localStorage.setItem(e,JSON.stringify(t)),!0}catch{return!1}}
+const D=[{name:"白米饭",calories:200,protein:4,fat:.5,carbs:45,category:"主食"},{name:"炒饭",calories:450,protein:12,fat:18,carbs:60,category:"主食"},{name:"白粥",calories:80,protein:2,fat:.3,carbs:18,category:"主食"},{name:"馒头",calories:220,protein:7,fat:1,carbs:44,category:"主食"},{name:"油条",calories:380,protein:7,fat:23,carbs:38,category:"主食"},{name:"肉包子",calories:250,protein:10,fat:10,carbs:30,category:"主食"},{name:"水饺",calories:40,protein:3,fat:1.5,carbs:5,category:"主食"},{name:"方便面",calories:470,protein:10,fat:22,carbs:58,category:"主食"},{name:"兰州拉面",calories:500,protein:15,fat:8,carbs:90,category:"主食"},{name:"红烧肉",calories:520,protein:25,fat:42,carbs:8,category:"荤菜"},{name:"红烧牛肉面",calories:650,protein:28,fat:22,carbs:80,category:"主食"},{name:"糖醋排骨",calories:480,protein:30,fat:25,carbs:30,category:"荤菜"},{name:"宫保鸡丁",calories:380,protein:28,fat:18,carbs:22,category:"荤菜"},{name:"麻婆豆腐",calories:280,protein:18,fat:20,carbs:8,category:"素菜"},{name:"回锅肉",calories:490,protein:22,fat:40,carbs:10,category:"荤菜"},{name:"红烧鱼",calories:250,protein:30,fat:12,carbs:5,category:"荤菜"},{name:"炸鸡腿",calories:350,protein:22,fat:25,carbs:10,category:"荤菜"},{name:"烤鸭",calories:430,protein:28,fat:33,carbs:3,category:"荤菜"},{name:"酱牛肉",calories:220,protein:35,fat:8,carbs:2,category:"荤菜"},{name:"拍黄瓜",calories:60,protein:3,fat:2,carbs:8,category:"素菜"},{name:"炒青菜",calories:90,protein:4,fat:5,carbs:8,category:"素菜"},{name:"地三鲜",calories:320,protein:6,fat:22,carbs:28,category:"素菜"},{name:"凉皮",calories:300,protein:8,fat:6,carbs:55,category:"小吃"},{name:"汉堡",calories:520,protein:25,fat:28,carbs:42,category:"快餐"},{name:"薯条",calories:310,protein:4,fat:15,carbs:42,category:"快餐"},{name:"炸鸡块",calories:280,protein:18,fat:16,carbs:15,category:"快餐"},{name:"披萨",calories:280,protein:12,fat:12,carbs:32,category:"快餐"},{name:"珍珠奶茶",calories:420,protein:4,fat:12,carbs:72,category:"饮品"},{name:"拿铁咖啡",calories:180,protein:8,fat:8,carbs:18,category:"饮品"},{name:"美式咖啡",calories:10,protein:.5,fat:0,carbs:2,category:"饮品"},{name:"可乐",calories:140,protein:0,fat:0,carbs:35,category:"饮品"},{name:"果汁",calories:160,protein:1,fat:.5,carbs:38,category:"饮品"},{name:"啤酒",calories:150,protein:1.5,fat:0,carbs:12,category:"饮品"},{name:"白酒",calories:230,protein:0,fat:0,carbs:0,category:"饮品"},{name:"酸奶",calories:120,protein:5,fat:4,carbs:16,category:"饮品"},{name:"薯片",calories:540,protein:6,fat:35,carbs:52,category:"零食"},{name:"巧克力",calories:550,protein:5,fat:35,carbs:55,category:"零食"},{name:"冰淇淋",calories:220,protein:3,fat:12,carbs:26,category:"零食"},{name:"饼干",calories:480,protein:8,fat:20,carbs:68,category:"零食"},{name:"坚果",calories:600,protein:20,fat:52,carbs:18,category:"零食"},{name:"辣条",calories:450,protein:8,fat:25,carbs:48,category:"零食"},{name:"肉夹馍",calories:400,protein:18,fat:18,carbs:40,category:"小吃"},{name:"煎饼果子",calories:380,protein:12,fat:15,carbs:50,category:"小吃"},{name:"鸡蛋灌饼",calories:350,protein:10,fat:16,carbs:42,category:"小吃"},{name:"茶叶蛋",calories:70,protein:6,fat:5,carbs:1,category:"小吃"},{name:"烤红薯",calories:200,protein:3,fat:.5,carbs:46,category:"小吃"},{name:"麻辣烫",calories:400,protein:20,fat:22,carbs:30,category:"小吃"},{name:"螺蛳粉",calories:550,protein:15,fat:25,carbs:65,category:"小吃"}];
+function F(e){if(!e||!e.trim().length)return null;const c=e.trim(),t=D.find(f=>f.name===c);if(t)return{...t,source:"db"};const n=D.find(f=>f.name.startsWith(c));if(n)return{...n,source:"db"};const r=D.find(f=>f.name.includes(c));if(r)return{...r,source:"db"};const i=D.find(f=>c.includes(f.name));if(i)return{...i,source:"db"};const s=c.split(/[\s\p{P}]+/u).filter(f=>f.length>=2);if(s.length>0){const f=D.find(d=>s.some(k=>d.name.includes(k)));if(f)return{...f,source:"db"}}return null}
+const W=[{pattern:/炸|油淋|酥/,desc:"油炸类",base:480,range:120},{pattern:/红烧|糖醋|酱爆/,desc:"红烧/糖醋类",base:450,range:100},{pattern:/清蒸|白灼|水煮(?!肉片|鱼)/,desc:"清蒸/白灼类",base:180,range:80},{pattern:/干锅|麻辣|香辣|酸辣/,desc:"重口味炒菜",base:420,range:100},{pattern:/烤(?!红薯|玉米)/,desc:"烧烤类",base:500,range:150},{pattern:/火锅|涮/,desc:"火锅类",base:700,range:200},{pattern:/凉拌|沙拉|生吃/,desc:"凉拌/沙拉",base:120,range:70},{pattern:/炒饭|盖饭|焗饭|拌饭|烩饭/,desc:"炒饭/盖饭",base:500,range:120},{pattern:/面$|拉面|拌面|炒面|汤面|捞面/,desc:"面条类",base:480,range:100},{pattern:/粉$|米线|河粉|肠粉|酸辣粉/,desc:"粉/米线",base:420,range:100},{pattern:/粥$|稀饭/,desc:"粥类",base:120,range:60},{pattern:/饺子|馄饨|抄手|云吞/,desc:"饺/馄饨",base:350,range:100},{pattern:/包子|馒头|花卷|烧卖/,desc:"面点类",base:250,range:80},{pattern:/牛肉|牛排|牛腩|牛柳/,desc:"牛肉类",base:300,range:100},{pattern:/猪肉|排骨|红烧肉|扣肉|回锅肉/,desc:"猪肉类",base:420,range:120},{pattern:/鸡肉|鸡排|鸡块|鸡翅|鸡腿|宫保/,desc:"鸡肉类",base:320,range:100},{pattern:/鱼肉|鱼片|水煮鱼|酸菜鱼|烤鱼/,desc:"鱼类",base:250,range:80},{pattern:/虾|蟹|海鲜|鱿鱼|贝壳/,desc:"海鲜类",base:200,range:70},{pattern:/蔬菜|青菜|白菜|菠菜|西兰花|菜心/,desc:"蔬菜类",base:80,range:40},{pattern:/豆腐|豆干|豆皮|腐竹/,desc:"豆制品",base:150,range:60},{pattern:/鸡蛋|蛋花|炒蛋|蒸蛋|荷包蛋/,desc:"蛋类",base:160,range:50},{pattern:/土豆|马铃薯|薯条/,desc:"土豆类",base:200,range:80},{pattern:/汤$|羹$/,desc:"汤羹类",base:100,range:60},{pattern:/奶茶|奶盖|拿铁|卡布奇诺/,desc:"奶茶/奶咖",base:380,range:80},{pattern:/咖啡|美式|冷萃|手冲/,desc:"清咖啡",base:15,range:10},{pattern:/可乐|雪碧|汽水|苏打水/,desc:"碳酸饮料",base:140,range:30},{pattern:/果汁|橙汁|苹果汁/,desc:"果汁类",base:150,range:40},{pattern:/奶昔|冰沙|星冰乐/,desc:"奶昔/冰沙",base:350,range:100},{pattern:/啤酒|红酒|白酒|鸡尾酒/,desc:"酒精饮料",base:200,range:80},{pattern:/蛋糕|甜点|布丁|提拉米苏|慕斯/,desc:"蛋糕/甜点",base:350,range:100},{pattern:/饼干|曲奇|威化/,desc:"饼干类",base:400,range:80},{pattern:/面包|吐司|可颂|牛角/,desc:"面包类",base:250,range:80},{pattern:/冰淇淋|雪糕|冰棍/,desc:"冰淇淋类",base:200,range:80},{pattern:/糖果|巧克力|太妃糖/,desc:"糖果类",base:480,range:80},{pattern:/苹果|香蕉|橘子|橙子|梨$|桃$|西瓜|葡萄|草莓|蓝莓|芒果|柚子|猕猴桃|火龙果/,desc:"水果类",base:80,range:40},{pattern:/汉堡|三明治|热狗/,desc:"汉堡/三明治",base:450,range:100},{pattern:/披萨|比萨/,desc:"披萨类",base:300,range:80},{pattern:/寿司|刺身|生鱼片/,desc:"日料类",base:250,range:80},{pattern:/./,desc:"食物",base:350,range:150}];
+function U(e){const t=e.trim();let n=1;if(/两碗|两份|大份|双份/.test(t))n=2;else if(/半碗|半份|小份/.test(t))n=.5;for(const i of W)if(i.pattern.test(t)){const s=Math.floor(Math.random()*i.range*2)-i.range,o=Math.round((i.base+s)*n);return{name:t,calories:Math.max(5,o),protein:Math.round(o*.08),fat:Math.round(o*.04),carbs:Math.round(o*.12),source:"estimate",note:"基于「"+i.desc+"」智能估算"}}return{name:t,calories:350,protein:15,fat:12,carbs:40,source:"estimate",note:"通用估算值"}}
+const T=7.7,B=[{type:"跳绳",emoji:"🪢",calPerMin:10,name:"跳绳（中速）"},{type:"跑步",emoji:"🏃",calPerMin:8,name:"跑步（8km/h）"},{type:"游泳",emoji:"🏊",calPerMin:7,name:"游泳（蛙泳）"},{type:"骑车",emoji:"🚴",calPerMin:6,name:"骑车（15km/h）"},{type:"快走",emoji:"🚶",calPerMin:4,name:"快走（6km/h）"},{type:"瑜伽",emoji:"🧘",calPerMin:3,name:"瑜伽"}];
+function C(e){return Math.round(e/T)}
+function X(e){const t=B[0],n=Math.round(e/t.calPerMin);return{type:t.type,emoji:t.emoji,minutes:n,label:t.emoji+" "+t.name+" "+n+" 分钟"}}
+function Y(e){const t=e*7,n=e*30;return{weeklyFat:Math.round(t/T),weeklyKg:(Math.round(t/T)/1e3).toFixed(1),monthlyFat:Math.round(n/T),monthlyKg:(Math.round(n/T)/1e3).toFixed(1)}}
+function E(e,t){return{percent:Math.round(e/t*100),ratio:e+" / "+t}}
+function q(e){return e<=10?"≈ 一小块橡皮擦":e<=30?"≈ 一块麻将大小":e<=60?"≈ 一颗鸡蛋大小":e<=100?"≈ 一个乒乓球大小":e<=200?"≈ 一个拳头大小":"≈ 比你手机还大的一坨脂肪"}
+const H=[[["还行，今天目前算个人","哟，今天挺自律啊","接着装，我看你能撑多久"],["很棒！你今天对自己很好呢～","吃得健康的感觉是不是也不错呀？","你已经在变好的路上了"],["当前摄入低于日推荐量60%，注意营养均衡","热量控制良好","当前处于能量赤字状态"]],[["啧，差不多得了","还行，还有额度挥霍","目前进度正常"],["还在健康范围内，放心～","今天表现不错","慢慢来，节奏很好哦"],["当前摄入正常，建议下一餐高蛋白低脂","热量处于合理区间","建议晚餐控制在500大卡以内"]],[["你再吃一口试试？伙伴脸都绿了","差不多了，给自己留条活路","行，再吃就是明天胖的0.1公斤"],["接近上限了哦，悠着点～","忍一忍，明天你会感谢自己","已经很棒了，现在停下来就是胜利"],["已达日推荐摄入的80-100%，建议停止进食","热量接近上限","已达到今日热量目标上沿"]],[["超标了朋友，心里没点数吗？","恭喜，额度已用完","到底是减肥还是增肥？"],["今天超了一点点，没关系","偶尔放纵也没事的","超标不可怕，现在刹车还来得及"],["已超标，建议立即停止进食并安排运动","明天建议减量补偿","多余热量将转化为脂肪储存"]],[["你的伙伴在吐血了！你有良心吗？","我就是你肚子上多出来的那块肉","救命，遗书已经写好了"],["没关系…我理解你今天很难过","吃都吃了别自责，明天重新来过","人生很长，胖这一天不会怎样"],["严重超标！多余热量将转化为体脂","已进入热量显著过剩区间","建议未来三天每日减少300大卡"]],[["死了。你伙伴死了。被你活活撑死的。","你就是一个行走的热量炸弹","明天记得来上坟。哦不对，明天复活"],["没关系，明天太阳照常升起","今天可能是很难熬的一天吧","抱抱你。明天是新的一天"],["热量摄入严重超标！长期将导致肥胖风险","警告：已达维持热量1.5倍以上","如频繁出现建议寻求营养科帮助"]]];
+function G(e,t,n,r,i){let s;if(t<60)s=0;else if(t<80)s=1;else if(t<100)s=2;else if(t<120)s=3;else if(t<150)s=4;else s=5;let o;if(e==="mean")o=0;else if(e==="kind")o=1;else if(e==="pro")o=2;else o=s<=1?1:s<=3?2:0;const f=H[s][o];return f[Math.floor(Math.random()*f.length)]}
+function J(e,t){const n=e-t;return[`我今天累计吃了${e}大卡，超额${n}大卡。你伙伴被你活活撑死了。`,`${e}大卡。你知道北极熊一天才吃多少吗？伙伴已死。`,`超额${n}大卡，相当于多吃了${Math.round(n/500)}顿饭。`,`今天的热量能让一头小猪长${Math.round(e/7e3)}斤。`][Math.floor(Math.random()*4)]}
+const Z={饮品:[{name:"茉莉花茶加奶",calories:80,emoji:"🍵"},{name:"美式咖啡加燕麦奶",calories:30,emoji:"☕"},{name:"零卡气泡水",calories:0,emoji:"🥤"},{name:"无糖乌龙茶",calories:0,emoji:"🍃"},{name:"柠檬水（无糖）",calories:10,emoji:"🍋"}],零食:[{name:"烘烤海苔",calories:35,emoji:"🌿"},{name:"小番茄",calories:25,emoji:"🍅"},{name:"无糖酸奶",calories:65,emoji:"🥛"},{name:"黄瓜条",calories:15,emoji:"🥒"},{name:"苹果",calories:80,emoji:"🍎"}],主食:[{name:"杂粮饭",calories:140,emoji:"🍚"},{name:"荞麦面",calories:180,emoji:"🍜"},{name:"蒸红薯",calories:120,emoji:"🍠"},{name:"全麦面包",calories:90,emoji:"🍞"},{name:"魔芋面",calories:15,emoji:"🍝"}],快餐:[{name:"鸡胸肉沙拉",calories:180,emoji:"🥗"},{name:"全麦三明治",calories:250,emoji:"🥪"},{name:"蔬菜卷",calories:200,emoji:"🌯"},{name:"烤鸡腿（去皮）",calories:160,emoji:"🍗"},{name:"金枪鱼饭团",calories:180,emoji:"🍙"}],荤菜:[{name:"清蒸鱼",calories:140,emoji:"🐟"},{name:"白灼虾",calories:100,emoji:"🦐"},{name:"鸡胸肉",calories:130,emoji:"🍗"},{name:"豆腐炒蔬菜",calories:120,emoji:"🥬"},{name:"瘦牛肉片",calories:150,emoji:"🥩"}],素菜:[{name:"凉拌黄瓜",calories:40,emoji:"🥒"},{name:"清炒西兰花",calories:50,emoji:"🥦"},{name:"西红柿沙拉",calories:35,emoji:"🍅"},{name:"蒸茄子",calories:45,emoji:"🍆"}],小吃:[{name:"蒸蛋羹",calories:80,emoji:"🥚"},{name:"关东煮（蔬菜）",calories:60,emoji:"🍢"},{name:"烤玉米",calories:120,emoji:"🌽"},{name:"紫菜蛋花汤",calories:45,emoji:"🍲"}]},K=[{name:"黄瓜",calories:15,emoji:"🥒"},{name:"西红柿",calories:20,emoji:"🍅"},{name:"零卡果冻",calories:5,emoji:"🍮"},{name:"纯水",calories:0,emoji:"💧"}];
+function Q(e,t,n){if(!t||t<300)return null;const r=Z[n]||K;return[...r].sort(()=>Math.random()-.5).slice(0,3).map(i=>({...i,saved:t-i.calories})).sort((i,s)=>i.calories-s.calories)}
+const V="calorie_coach_api_key";function ee(e){S(V,e)}function te(){return L(V)}async function ne(e){const t=te();if(!t)throw new Error("请先设置API Key");try{const n=await fetch("https://api.deepseek.com/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+t},body:JSON.stringify({model:"deepseek-chat",messages:[{role:"system",content:"你是专业营养师，只返回JSON"},{role:"user",content:"估算食物热量，只返回JSON: {\"name\":\"...\",\"calories\":整数,\"protein\":整数,\"fat\":整数,\"carbs\":整数,\"note\":\"...\"}\n食物："+e}],temperature:.3,max_tokens:300})});if(!n.ok){const s=await n.text();throw new Error("API请求失败("+n.status+"): "+s)}const r=await n.json(),i=r.choices?.[0]?.message?.content;if(!i)throw new Error("API返回空");let o=i.trim();o.startsWith("```")&&(o=o.replace(/^```(?:json)?\s*\n?/,"").replace(/\n?```$/,""));const f=JSON.parse(o);return{name:f.name||e,calories:parseInt(f.calories)||0,protein:parseInt(f.protein)||0,fat:parseInt(f.fat)||0,carbs:parseInt(f.carbs)||0,note:f.note||"",source:"ai"}}catch(n){throw n}}
+const P={HEALTHY:"healthy",FULL:"full",STRUGGLING:"struggle",DYING:"dying",DEAD:"dead"},$={healthy:{label:"活力满满！继续加油～",cssClass:"pet-healthy"},full:{label:"有点撑了…悠着点吧",cssClass:"pet-full"},struggle:{label:"不行了…再吃就要出事了",cssClass:"pet-struggle"},dying:{label:"濒死边缘！快停下！！",cssClass:"pet-dying"},dead:{label:"已死。你满意了吗？",cssClass:"pet-dead"}};
+function re(e,t){const n=Math.round(e/t*100);let r;return r=n<80?P.HEALTHY:n<100?P.FULL:n<120?P.STRUGGLING:n<150?P.DYING:P.DEAD,{status:r,percentage:n,...$[r]}}
+function ie(e){if(!e)return!0;return oe()!==e}
+function oe(){const e=new Date;return e.getFullYear()+"-"+String(e.getMonth()+1).padStart(2,"0")+"-"+String(e.getDate()).padStart(2,"0")}
+function se(e,t,n){const r=t-n;return{summary:"累计 "+t+" 大卡，超额 "+r+" 大卡",logHtml:e.map(s=>{const o=s.calories>400?"🔥":s.calories>200?"⚠️":"✅";return'<div class="death-log-item">'+o+" "+s.name+" — <strong>"+s.calories+"</strong> 大卡</div>"}).join("")}}
+const le="calorie_coach_data",ae={female:1800,male:2200},M=e=>document.getElementById(e),ce={petTypeBtns:document.querySelectorAll(".pet-type-btn"),petAvatar:M("pet-avatar"),personalitySelect:M("personality-select"),resetBtn:M("reset-btn"),petStatusText:M("pet-status-text"),petProgressBar:M("pet-progress-bar"),petProgressLabel:M("pet-progress-label"),genderButtons:document.querySelectorAll(".gender-btn"),foodInput:M("food-input"),searchBtn:M("search-btn"),loading:M("loading"),loadingText:M("loading-text"),resultArea:M("result-area"),resultFoodName:M("result-food-name"),resultConfidence:M("result-confidence"),resultCalories:M("result-calories"),resultFatFeedback:M("result-fat-feedback"),resultFatVisual:M("result-fat-visual"),resultCumulative:M("result-cumulative"),resultExercise:M("result-exercise"),resultSubstitutes:M("result-substitutes"),resultQuote:M("result-quote"),historyArea:M("history-area"),historyHeader:M("history-header"),historyToggle:M("history-toggle"),historyList:M("history-list"),deathOverlay:M("death-overlay"),deathSummary:M("death-summary"),deathLog:M("death-log"),deathDismissBtn:M("death-dismiss-btn"),apiKeySection:M("api-key-section"),apiKeyInput:M("api-key-input"),apiKeySaveBtn:M("api-key-save-btn")};
+let ue={gender:"female",dailyLimit:ae.female,personality:"auto",petType:"electric",history:[],date:"",totalCalories:0};
+function de(){const e=L(le),t=oe();e&&e.date&&!ie(e.date)?ue={...ue,...e}:ue.date=t,ce.personalitySelect.value=ue.personality,fe(ue.petType),he(ue.gender),pe(),me();const n=re(ue.totalCalories,ue.dailyLimit);n.status===P.DEAD&&ge(),te()&&ce.apiKeySection&&ce.apiKeySection.classList.add("hidden")}
+ce.searchBtn.addEventListener("click",_e);ce.foodInput.addEventListener("keydown",e=>{e.key==="Enter"&&_e()});ce.personalitySelect.addEventListener("change",e=>{ue.personality=e.target.value,ye()});ce.petTypeBtns.forEach(e=>{e.addEventListener("click",()=>{const t=e.dataset.pet;ue.petType=t,fe(t),ye()})});ce.resetBtn.addEventListener("click",()=>{confirm("确定重置？伙伴会复活哦。")&&we()});ce.genderButtons.forEach(e=>{e.addEventListener("click",()=>{const t=e.dataset.gender;ue.gender=t,ue.dailyLimit=ae[t],he(t),ye(),pe()})});ce.historyHeader.addEventListener("click",()=>{ce.historyList.classList.toggle("collapsed"),ce.historyToggle.textContent=ce.historyList.classList.contains("collapsed")?"▶":"▼"});ce.deathDismissBtn.addEventListener("click",()=>{ce.deathOverlay.classList.add("hidden")});ce.apiKeySaveBtn?.addEventListener("click",()=>{const e=ce.apiKeyInput.value.trim();e&&(ee(e),ce.apiKeySection.classList.add("hidden"),alert("API Key已保存！"))});
+async function _e(){const l=ce.foodInput.value.trim();if(!l)return;const c=re(ue.totalCalories,ue.dailyLimit);if(c.status===P.DEAD){ge();return}be("正在查询…");let h=null,u="db";if(h=F(l),!h)if(te())try{ve("AI估算中…"),h=await ne(l),u="ai"}catch(p){be(""),alert("查询失败: "+p.message);return}else h=U(l),u="estimate";const d=h.calories||0,m=h.name||l;ue.totalCalories+=d,ue.history.push({name:m,calories:d,time:new Date().toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"})}),ye(),Ee(h,u,d),pe(),me(),be(""),ce.foodInput.value="";const g=re(ue.totalCalories,ue.dailyLimit);g.status===P.DEAD&&setTimeout(()=>ge(),800)}
+function Ee(e,t,n){ce.resultArea.classList.remove("hidden"),ce.resultFoodName.textContent=e.name,ce.resultConfidence.textContent=t==="db"?"✅精确数据":t==="ai"?"🤖AI估算":"💡智能估算",ce.resultConfidence.className="confidence "+t,ce.resultCalories.innerHTML='<span class="cal-number">'+n+'</span> <span class="cal-unit">大卡</span>';const r=C(n);ce.resultFatFeedback.textContent="≈ "+r+" 克纯脂肪贴在身上",ce.resultFatVisual.textContent=q(r);const i=Y(n);ce.resultCumulative.innerHTML='<div>📈如果每天吃一次：</div><div>一周≈胖<strong>'+i.weeklyKg+"</strong>斤（"+i.weeklyFat+"克脂肪）</div><div>一月≈胖<strong>"+i.monthlyKg+"</strong>斤（"+i.monthlyFat+"克脂肪）</div>";const s=X(n);ce.resultExercise.textContent="要消耗掉它："+s.label;const o=Q(e.name,n,e.category);if(o){ce.resultSubstitutes.classList.remove("hidden"),ce.resultSubstitutes.innerHTML='<div class="sub-title">🔁想解馋？试试这些：</div>'+o.map(f=>'<div class="sub-item"><span>'+f.emoji+" "+f.name+'</span><span><strong>'+f.calories+"</strong>大卡·省<strong>"+f.saved+"</strong>大卡</span></div>").join("")}else ce.resultSubstitutes.classList.add("hidden");const{percent:c}=E(ue.totalCalories,ue.dailyLimit),h=re(ue.totalCalories,ue.dailyLimit),u=G(ue.personality,c,h.status===P.DEAD,e.name,n);ce.resultQuote.textContent="💬「"+u+"」"}
+function pe(){const e=re(ue.totalCalories,ue.dailyLimit),{ratio:t}=E(ue.totalCalories,ue.dailyLimit);ce.petAvatar.classList.remove("pet-healthy","pet-full","pet-struggle","pet-dying","pet-dead"),ce.petAvatar.classList.add(e.cssClass),ce.petStatusText.textContent=e.label,ce.petProgressBar.style.width=Math.min(e.percentage,100)+"%",ce.petProgressLabel.textContent="今日: "+t+" 大卡";const n={[P.HEALTHY]:"#4CAF50",[P.FULL]:"#FF9800",[P.STRUGGLING]:"#FF5722",[P.DYING]:"#D32F2F",[P.DEAD]:"#000000"};ce.petProgressBar.style.backgroundColor=n[e.status]||"#4CAF50"}
+function me(){ue.history.length===0?ce.historyArea.classList.add("hidden"):(ce.historyArea.classList.remove("hidden"),ce.historyList.innerHTML=ue.history.slice().reverse().map((t,n)=>{const r=ue.history.length-1-n;return'<div class="history-item"><span class="history-name">'+t.name+'</span><span class="history-cal">'+t.calories+'大卡</span><span class="history-time">'+t.time+'</span><button class="history-delete" data-index="'+r+'">✕</button></div>'}).join(""),ce.historyList.querySelectorAll(".history-delete").forEach(t=>{t.addEventListener("click",n=>{n.stopPropagation();const r=parseInt(t.dataset.index),i=ue.history.splice(r,1)[0];ue.totalCalories=Math.max(0,ue.totalCalories-i.calories),ye(),pe(),me()})}))}
+function ge(){const e=se(ue.history,ue.totalCalories,ue.dailyLimit),t=J(ue.totalCalories,ue.dailyLimit);ce.deathSummary.textContent="「"+t+"」",ce.deathLog.innerHTML='<div class="death-log-title">今日罪证：</div>'+e.logHtml,ce.deathOverlay.classList.remove("hidden")}
+function he(e){ce.genderButtons.forEach(t=>{t.classList.toggle("active",t.dataset.gender===e)})}
+function fe(e){ce.petTypeBtns.forEach(t=>{t.classList.toggle("active",t.dataset.pet===e)}),ce.petAvatar.classList.remove("pet-type-electric","pet-type-nailong"),ce.petAvatar.classList.add("pet-type-"+e),document.body.classList.remove("theme-electric","theme-nailong"),document.body.classList.add("theme-"+e)}
+function be(e){ce.loading.classList.remove("hidden"),ce.loadingText.textContent=e}
+function ve(e){ce.loadingText.textContent=e}
+function ye(){S(le,{gender:ue.gender,dailyLimit:ue.dailyLimit,personality:ue.personality,petType:ue.petType,history:ue.history,date:ue.date,totalCalories:ue.totalCalories})}
+function we(){ue.history=[],ue.totalCalories=0,ue.date=oe(),ye(),pe(),me(),ce.resultArea.classList.add("hidden"),ce.deathOverlay.classList.add("hidden")}
+document.addEventListener("DOMContentLoaded",de);
+})();
+</script>
+</body>
+</html>
